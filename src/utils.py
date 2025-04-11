@@ -29,7 +29,8 @@ def read_pdf_file(file_path: str) -> str:
     try:
         with open(file_path, 'rb') as file:
             reader = PyPDF2.PdfReader(file)
-            return ' '.join([page.extract_text() for page in reader.pages])
+            # Join pages with double newline to preserve paragraph breaks
+            return '\n\n'.join([page.extract_text().strip() for page in reader.pages])
     except Exception as e:
         print(f"Error reading PDF file {file_path}: {e}")
         return ""
@@ -55,9 +56,26 @@ def read_file(file_path: str) -> str:
     else:
         raise ValueError(f"Unsupported file type: {ext}")
 
-def preprocess_text(text: str) -> str:
-    """Preprocess the input text by removing extra whitespace."""
-    return ' '.join(text.split())
+def preprocess_text(text: str, max_chars: int = 2000) -> str:
+    """
+    Preprocess the input text by:
+    1. Removing extra whitespace while preserving paragraph breaks
+    2. Truncating to prevent exceeding model token limits
+    
+    Args:
+        text: The input text to preprocess
+        max_chars: Maximum number of characters to keep (approximate token limit)
+    
+    Returns:
+        Preprocessed and potentially truncated text
+    """
+    # Truncate the text if it's too long
+    if len(text) > max_chars:
+        text = text[:max_chars]
+    
+    # Split into paragraphs, clean each paragraph, then join with double newline
+    paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
+    return '\n\n'.join([' '.join(p.split()) for p in paragraphs])
 
 def extract_keywords(text: str, n: int = 5) -> List[str]:
     """Extract the most common keywords from the text."""
@@ -74,6 +92,10 @@ def generate_gpt2_output(
     max_length: int = 50
 ) -> str:
     """Generate output using a GPT-2 model."""
+    # Set padding token if not already set
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    
     inputs = tokenizer(prompt, return_tensors="pt", padding=True, truncation=True, max_length=512)
     input_ids = inputs.input_ids.to(device)
     attention_mask = inputs.attention_mask.to(device)
@@ -85,7 +107,7 @@ def generate_gpt2_output(
             max_length=input_ids.shape[1] + max_length,
             num_return_sequences=1,
             no_repeat_ngram_size=2,
-            pad_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.pad_token_id,
             do_sample=True,
             top_k=50,
             top_p=0.95,
