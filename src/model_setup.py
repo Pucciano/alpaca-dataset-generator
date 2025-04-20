@@ -15,8 +15,14 @@ def setup_models():
     models["t5_tokenizer"] = T5Tokenizer.from_pretrained(CONFIG['models']['t5'])
     models["t5_model"] = T5ForConditionalGeneration.from_pretrained(CONFIG['models']['t5']).to(CONFIG['device'])
 
-    # Sentiment analysis
-    models["sentiment_pipeline"] = pipeline("sentiment-analysis", model=CONFIG['models']['sentiment'], device=0 if torch.cuda.is_available() else -1)
+    # Sentiment analysis with truncation
+    models["sentiment_pipeline"] = pipeline(
+        "sentiment-analysis", 
+        model=CONFIG['models']['sentiment'], 
+        device=0 if torch.cuda.is_available() else -1,
+        truncation=True,
+        max_length=512
+    )
 
     # Sentence transformer
     models["sentence_model"] = SentenceTransformer(CONFIG['models']['sentence'], device=CONFIG['device'])

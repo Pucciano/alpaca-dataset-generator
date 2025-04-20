@@ -5,23 +5,13 @@ import random
 from tqdm import tqdm
 from nltk.tokenize import sent_tokenize
 from utils import preprocess_text, generate_gpt2_output, generate_t5_output, extract_keywords, is_valid_output
+from config import CONFIG
 
 def generate_dataset(num_examples: int, input_texts: List[str], models: Dict, device: torch.device) -> List[Dict[str, Any]]:
     dataset = []
     instruction_type_counts = Counter()
 
-    INSTRUCTION_TYPES = [
-        ("concept_explanation", "Explain the following concept in simple terms:"),
-        ("generate_question", "Generate a thought-provoking question about this concept:"),
-        ("provide_example", "Provide a real-world example that illustrates this concept:"),
-        ("learning_path", "Suggest a learning path to master this concept, including prerequisite topics and follow-up areas:"),
-        ("misconception", "Identify and correct a common misconception about this concept:"),
-        ("analogy", "Create an analogy to help understand this concept:"),
-        ("quiz_generation", "Generate a multiple-choice quiz question about this concept, including the correct answer and three plausible distractors:"),
-        ("concept_relation", "Explain how this concept relates to another relevant concept in the field:"),
-        ("application", "Describe a practical application or use case for this concept:"),
-        ("difficulty_assessment", "Assess the difficulty level of this concept and explain why it might be challenging for some students:")
-    ]
+    INSTRUCTION_TYPES = CONFIG['instruction_types']
 
     with tqdm(total=num_examples, desc="Generating examples", unit="example") as pbar:
         while len(dataset) < num_examples:

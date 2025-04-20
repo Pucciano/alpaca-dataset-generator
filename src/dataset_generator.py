@@ -3,12 +3,13 @@ from typing import List, Dict, Any
 from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader, Dataset
-from utils import generate_gpt2_output, generate_t5_output, extract_keywords
+from utils import generate_gpt2_output, generate_t5_output, extract_keywords, preprocess_text
 from config import CONFIG
 
 class TextDataset(Dataset):
     def __init__(self, texts, instructions):
-        self.texts = texts
+        # Preprocess texts when loading to ensure they're within token limits
+        self.texts = [preprocess_text(text) for text in texts]
         self.instructions = instructions
 
     def __len__(self):
@@ -47,7 +48,7 @@ def generate_dataset(input_texts: List[str], models: Dict) -> List[Dict[str, Any
 
 def generate_batch(models: Dict, texts: List[str], instruction_types: List[str], instructions: List[str]) -> List[Dict[str, Any]]:
     batch_examples = []
-    
+    print(f"Generating batch of {len(texts)} examples")
     for text, instruction_type, instruction in zip(texts, instruction_types, instructions):
         if instruction_type == "summarize":
             output = generate_t5_output(models["t5_tokenizer"], models["t5_model"], "summarize", text, CONFIG['device'])
@@ -57,7 +58,9 @@ def generate_batch(models: Dict, texts: List[str], instruction_types: List[str],
             keywords = extract_keywords(text)
             output = ", ".join(keywords)
         elif instruction_type == "sentiment":
-            sentiment = models["sentiment_pipeline"](text)[0]
+            # Add truncation to handle long texts, limiting to 512 tokens
+            truncated_text = text[:1000]  # Approximate truncation to stay under 512 tokens
+            sentiment = models["sentiment_pipeline"](truncated_text)[0]
             explanation = generate_gpt2_output(models["gpt2_tokenizer"], models["gpt2_model"], f"Explain why the sentiment is {sentiment['label']}: ", CONFIG['device'])
             output = f"{sentiment['label'].capitalize()}. {explanation}"
         else:
